@@ -1,213 +1,213 @@
-Pygame Front Page
-=================
+import math 
+import random
+import pygame
+
+WIDTH, HEIGHT = 2000, 1200
+BACKGROUND_COLOR = (0, 0, 0)
+FPS = 60
+SCALE = 20
+
+WORDS = ["love you", "Love You", "LOVE YOU"]
+CENTER_TEXT = " Love You "
+COLORS = [
+    (70, 130, 180),
+    (30, 144, 255),
+    (0, 191, 255),
+    (100, 149, 237),
+    (65, 105, 225)
+    ]
+
+class Particle:
+__slots__ = ('x', 'y', 'order', 'kind', 'word', 'color', 'alpha', 'flicker', 'font', 'delay', 'size_mult')
+
+def __init__(self, x, y, order, kind):
+    self.x = x
+    self.y = y
+    self.order = order
+    self.kind = kind
+    self.word = random.choice(WORDS)
+    self.color = random.choice(COLORS)
+    self.alpha = 0
+    self.flicker = random.uniform(0, math.pi * 2)
+    self.font = None
+    self.delay = 0
+    self.size_mult = random.uniform(0.85, 1.15)
+
+def heart_xy(t):
+    x = 16 * (math.sin(t) ** 3)
+    y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+    return x, -y
+
+def to_screen(x, y):
+    return x * SCALE + WIDTH / 2, Y * SCALE + HEIGHT / 2
+
+def build_outline_particles(n_outline, min_gap=30):
+    particles = []
+    placed = []
+    for i in range(n_outline):
+        t = (i / n_outline) * 2 * math.pi
+        bx, by = heart_xy(t)
+        sx, sy = to_screen(bx, by)
+        if any(math.hypot((sx - px, sy - py) < min_gap for (px, py) in placed):
+            continue
+        placed.append((sx, sy))
+        particles.append(Particle(sx, sy, i, "outline"))
+     return particles
+
+def build_fill_particles(n_fill, min_gap=46):
+    particles = []
+    placed = []
+    attempts = 0
+    max_attempts = n-fill * 80
+
+    while len(particles) < n_fill and attempts < max_attempts:
+        attempts += 1
+        t = random.uniform(0, 2 * math.pi)
+        r = random.uniform(0.0, 0.86)
+        bx, by = heart_xy(t)
+        px, py = bx * r, by * r
+        sx, sy = to_screen(px, py)
+
+        if any(math.hypot(sx - qx, sy - qy) < min_gap for (qx, qy) in placed):
+
+        placed.append((sx, sy))
+        particles.append(Particle(sx, sy, random.randint(0, 320), "fill"))
+
+     return particles
+
+def draw_glow_text(glow_layer, screen_layer, font, word, color, x, y, alpha, size_mult=1.0):
+    if alpha <= 0:
+        return
+    
+    base_size = font.size(word)
+    if size_mult != 1.0:
+        scaled_font = pygame.font.Font(None, int(font.get_height() * size_mult))
+        txt = scaled_font.render(word, True, color)
+    else:
+        txt = font.render(word, True, color)
+    
+    txt.set_alpha(alpha)
+    txt_rect = txt.get_rect(center=(x, y))
+    
+    if alpha > 10:
+        glow_big = pygame.transform.smoothscale(txt, (int(txt.get_width() * 2.4), int(txt.get_height() * 2.4)))
+        glow_big.set_alpha(max(0, alpha // 7))
+        glow_rect = glow_big.get_rect(center=(x, y))
+        glow_layer.blit(glow_big, glow_rect)
+        
+        glow_small = pygame.transform.smoothscale(txt, (int(txt.get_width() * 1.6), int(txt.get_height() * 1.6)))
+        glow_small.set_alpha(max(0, alpha // 3))
+        glow_rect = glow_small.get_rect(center=(x, y))
+        glow_layer.blit(glow_small, glow_rect)
+    
+    screen_layer.blit(txt, txt_rect)
+
+def main():
+    pygame.init()
+
+    pygame.mixer.init()
+    pygame.mixer.music.load("love_you.mp3")
+    pygame.mixer.music.play()
+
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.DOUBLEBUF)
+    pygame.display.set_caption("I love you <3")
+    clock = pygame.time.Clock()
+    
+    font_outline = pygame.font.SysFont("arial", 20, bold=True)
+    font_fill = pygame.font.SysFont("arial", 17, bold=True)
+    font_center = pygame.font.SysFont("georgia", 54, bold=True)
+    
+    background = pygame.Surface((WIDTH, HEIGHT))
+    background.fill(BACKGROUND_COLOR)
+    
+    outline = build_outline_particles(n_outline=160)
+    fill = build_fill_particles(n_fill=130)
+    
+    outline_span = max(p.order for p in outline) if outline else 0
+    frames_per_step = 1.6
+    fill_start_frame = int(outline_span * frames_per_step) + 30
+    
+    for p in fill:
+        p.delay = fill_start_frame + p.order
+    for p in outline:
+        p.delay = int(p.order * frames_per_step)
+    
+    particles = outline + fill
+    for p in particles:
+        p.font = font_outline if p.kind == "outline" else font_fill
+    
+    running = True
+    frame = 0
+    glow_layer = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    text_layer = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                running = False
+        
+        screen.blit(background, (0, 0))
+        glow_layer.fill((0, 0, 0, 0))
+        text_layer.fill((0, 0, 0, 0))
+        frame += 1
+        
+        for p in particles:
+            if frame > p.delay and p.alpha < 255:
+                p.alpha = min(255, p.alpha + 14 + random.randint(0, 4))
+            
+            if p.alpha >= 255:
+                flick = 0.75 + 0.25 * math.sin(frame * 0.04 + p.flicker)
+            else:
+                flick = 1.0
+            
+            alpha = int(p.alpha * flick)
+            if alpha <= 0:
+                continue
+            
+            draw_glow_text(glow_layer, text_layer, p.font, p.word, p.color, 
+                          p.x, p.y, alpha, p.size_mult)
+        
+        screen.blit(glow_layer, (0, 0))
+        screen.blit(text_layer, (0, 0))
+        
+        center_start = fill_start_frame + 200
+        if frame > center_start:
+            progress = min(1.0, (frame - center_start) / 60)
+            center_alpha = int(255 * (1 - math.exp(-progress * 8)))
+            
+            pulse = 1.0 + 0.025 * math.sin(frame * 0.05)
+            center_surf = font_center.render(CENTER_TEXT, True, (255, 250, 245))
+            
+            new_width = int(center_surf.get_width() * pulse)
+            new_height = int(center_surf.get_height() * pulse)
+            if new_width > 0 and new_height > 0:
+                center_surf = pygame.transform.smoothscale(center_surf, (new_width, new_height))
+            
+            center_surf.set_alpha(center_alpha)
+            
+            if center_alpha > 10:
+                glow_center = pygame.transform.smoothscale(
+                    center_surf, (int(center_surf.get_width() * 1.4), int(center_surf.get_height() * 1.4))
+                )
+                glow_center.set_alpha(center_alpha // 5)
+                glow_rect = glow_center.get_rect(center=(WIDTH/2, HEIGHT/2))
+                screen.blit(glow_center, glow_rect)
+            
+            text_rect = center_surf.get_rect(center=(WIDTH/2, HEIGHT/2))
+            screen.blit(center_surf, text_rect)
+        
+        pygame.display.flip()
+        clock.tick(FPS)
+    
+    pygame.quit()
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print("OCURRIO UN ERROR:", e)
+        import traceback
+        traceback.print_exc()
 
-.. toctree::
-   :maxdepth: 2
-   :glob:
-   :hidden:
 
-   ref/*
-   tut/*
-   tut/en/**/*
-   tut/ko/**/*
-   c_api
-   filepaths
-   logos
 
-Quick start
------------
-
-Welcome to pygame! Once you've got pygame installed (:code:`pip install pygame` or
-:code:`pip3 install pygame` for most people), the next question is how to get a game
-loop running. Pygame, unlike some other libraries, gives you full control of program
-execution. That freedom means it is easy to mess up in your initial steps.
-
-Here is a good example of a basic setup (opens the window, updates the screen, and handles events)--
-
-.. literalinclude:: ref/code_examples/base_script.py
-
-Here is a slightly more fleshed out example, which shows you how to move something
-(a circle in this case) around on screen--
-
-.. literalinclude:: ref/code_examples/base_script_example.py
-
-For more in depth reference, check out the :ref:`tutorials-reference-label`
-section below, check out a video tutorial (`I'm a fan of this one
-<https://www.youtube.com/watch?v=AY9MnQ4x3zk>`_), or reference the API
-documentation by module.
-
-Documents
----------
-
-`Readme`_
-  Basic information about pygame: what it is, who is involved, and where to find it.
-
-`Install`_
-  Steps needed to compile pygame on several platforms.
-  Also help on finding and installing prebuilt binaries for your system.
-
-:doc:`filepaths`
-  How pygame handles file system paths.
-
-:doc:`Pygame Logos <logos>`
-   The logos of Pygame in different resolutions.
-
-
-`LGPL License`_
-  This is the license pygame is distributed under.
-  It provides for pygame to be distributed with open source and commercial software.
-  Generally, if pygame is not changed, it can be used with any type of program.
-
-.. _tutorials-reference-label:
-
-Tutorials
----------
-
-:doc:`Introduction to Pygame <tut/PygameIntro>`
-  An introduction to the basics of pygame.
-  This is written for users of Python and appeared in volume two of the Py magazine.
-
-:doc:`Import and Initialize <tut/ImportInit>`
-  The beginning steps on importing and initializing pygame.
-  The pygame package is made of several modules.
-  Some modules are not included on all platforms.
-
-:doc:`How do I move an Image? <tut/MoveIt>`
-  A basic tutorial that covers the concepts behind 2D computer animation.
-  Information about drawing and clearing objects to make them appear animated.
-
-:doc:`Chimp Tutorial, Line by Line <tut/ChimpLineByLine>`
-  The pygame examples include a simple program with an interactive fist and a chimpanzee.
-  This was inspired by the annoying flash banner of the early 2000s.
-  This tutorial examines every line of code used in the example.
-
-:doc:`Sprite Module Introduction <tut/SpriteIntro>`
-  Pygame includes a higher level sprite module to help organize games.
-  The sprite module includes several classes that help manage details found in almost all games types.
-  The Sprite classes are a bit more advanced than the regular pygame modules,
-  and need more understanding to be properly used.
-
-:doc:`Surfarray Introduction <tut/SurfarrayIntro>`
-  Pygame used the NumPy python module to allow efficient per pixel effects on images.
-  Using the surface arrays is an advanced feature that allows custom effects and filters.
-  This also examines some of the simple effects from the pygame example, arraydemo.py.
-
-:doc:`Camera Module Introduction <tut/CameraIntro>`
-  Pygame, as of 1.9, has a camera module that allows you to capture images,
-  watch live streams, and do some basic computer vision.
-  This tutorial covers those use cases.
-
-:doc:`Newbie Guide <tut/newbieguide>`
-  A list of thirteen helpful tips for people to get comfortable using pygame.
-
-:doc:`Making Games Tutorial <tut/MakeGames>`
-  A large tutorial that covers the bigger topics needed to create an entire game.
-
-:doc:`Display Modes <tut/DisplayModes>`
-  Getting a display surface for the screen.
-
-:doc:`한국어 튜토리얼 (Korean Tutorial) <tut/ko/빨간블록 검은블록/개요>`
-  빨간블록 검은블록
-
-
-Reference
----------
-
-:ref:`genindex`
-  A list of all functions, classes, and methods in the pygame package.
-
-:doc:`ref/bufferproxy`
-  An array protocol view of surface pixels
-
-:doc:`ref/color`
-  Color representation.
-
-:doc:`ref/cursors`
-  Loading and compiling cursor images.
-
-:doc:`ref/display`
-  Configure the display surface.
-
-:doc:`ref/draw`
-  Drawing simple shapes like lines and ellipses to surfaces.
-
-:doc:`ref/event`
-  Manage the incoming events from various input devices and the windowing platform.
-
-:doc:`ref/examples`
-  Various programs demonstrating the use of individual pygame modules.
-
-:doc:`ref/font`
-  Loading and rendering TrueType fonts.
-
-:doc:`ref/freetype`
-  Enhanced pygame module for loading and rendering font faces.
-
-:doc:`ref/gfxdraw`
-  Anti-aliasing draw functions.
-
-:doc:`ref/image`
-  Loading, saving, and transferring of surfaces.
-
-:doc:`ref/joystick`
-  Manage the joystick devices.
-
-:doc:`ref/key`
-  Manage the keyboard device.
-
-:doc:`ref/locals`
-  Pygame constants.
-
-:doc:`ref/mixer`
-  Load and play sounds
-
-:doc:`ref/mouse`
-  Manage the mouse device and display.
-
-:doc:`ref/music`
-  Play streaming music tracks.
-
-:doc:`ref/pygame`
-  Top level functions to manage pygame.
-
-:doc:`ref/pixelarray`
-  Manipulate image pixel data.
-
-:doc:`ref/rect`
-  Flexible container for a rectangle.
-
-:doc:`ref/scrap`
-  Native clipboard access.
-
-:doc:`ref/sndarray`
-  Manipulate sound sample data.
-
-:doc:`ref/sprite`
-  Higher level objects to represent game images.
-
-:doc:`ref/surface`
-  Objects for images and the screen.
-
-:doc:`ref/surfarray`
-  Manipulate image pixel data.
-
-:doc:`ref/tests`
-  Test pygame.
-
-:doc:`ref/time`
-  Manage timing and framerate.
-
-:doc:`ref/transform`
-  Resize and move images.
-
-:doc:`pygame C API <c_api>`
-  The C api shared amongst pygame extension modules.
-
-:ref:`search`
-  Search pygame documents by keyword.
-
-.. _Readme: ../wiki/about
-
-.. _Install: ../wiki/GettingStarted#Pygame%20Installation
-
-.. _LGPL License: LGPL.txt
